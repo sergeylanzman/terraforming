@@ -14,9 +14,51 @@ module Terraforming
       def initialize(client)
         @client = client
       end
-
+      def tfstate_skeleton
+        {
+            "version" => 1,
+            "serial" => 0,
+            "modules" => [
+                {
+                    "path" => [
+                        "root"
+                    ],
+                    "outputs" => {},
+                    "resources" => {},
+                }
+            ]
+        }
+      end
       def tf
-        apply_template(@client, 'tf/s3')
+        Dir.mkdir('s3')
+        buckets.each do |bucket|
+          @bucket = bucket
+          Dir.mkdir('s3/' + bucket.name)
+          d = ERB.new(open(template_path( 'tf/s3')).read, nil, "-").result(binding)
+          File.write('s3/' + bucket.name + '/s3.tf', d)
+          tfstate = tfstate_skeleton
+          tfstate["serial"] = tfstate["serial"] + 1
+          tfstate["modules"][0]["resources"] = tfstate["modules"][0]["resources"]
+          resources={}
+          bucket_policy = bucket_policy_of(bucket)
+          resources["aws_s3_bucket.#{module_name_of(bucket)}"] = {
+              "type" => 'aws_s3_bucket',
+              "primary" => {
+                  "id" => bucket.name,
+                  "attributes" => {
+                      "acl" => 'private',
+                      "bucket" => bucket.name,
+                      "force_destroy" => 'false',
+                      "id" => bucket.name,
+                      "policy" => bucket_policy ? bucket_policy : '',
+                  }
+              }
+          }
+          tfstate["modules"][0]["resources"] = tfstate["modules"][0]["resources"].merge(resources)
+          File.write('s3/' + bucket.name + '/terraform.tfstate', MultiJson.encode(tfstate, pretty: true))
+          system('cd s3/' + bucket.name + ' && terraform init && terraform refresh')
+        end
+        #apply_template(@client, 'tf/s3')
       end
 
       def tfstate
@@ -55,6 +97,8 @@ module Terraforming
       def buckets
         return @buckets unless @buckets.nil?
         @buckets = []
+        #@buckets << Aws::S3::Bucket.new('k8s-backup.gett.com', client: @client)
+        #return @buckets
         @client.list_buckets.map(&:buckets).flatten.each do |bucket|
           @buckets << Aws::S3::Bucket.new(bucket.name, client: @client) if same_region?(bucket)
         end

@@ -1,25 +1,23 @@
-<% buckets.each do |bucket| -%>
-
-resource "aws_s3_bucket" "<%= module_name_of(bucket) %>" {
-    bucket = "<%= bucket.name %>"
+resource "aws_s3_bucket" "<%= module_name_of(@bucket) %>" {
+    bucket = "<%= @bucket.name %>"
     acl    = "private"
-<%- unless (policy = bucket_policy_of(bucket)).nil? -%>
+<%- unless (policy = bucket_policy_of(@bucket)).nil? -%>
     policy = <<POLICY
 <%= prettify_policy(policy) %>
 POLICY
 <%- end -%>
 
-<%- if tagging?(bucket)-%>
+<%- if tagging?(@bucket)-%>
     tags {
-    <% bucket.tagging.tag_set.each do |t| -%>
+    <% @bucket.tagging.tag_set.each do |t| -%>
       "<%=t[:key]%>" = "<%=t[:value]%>"
     <%end-%>
 }
 <%- end -%>
 
-<%- if cors?(bucket) -%>
+<%- if cors?(@bucket) -%>
 
-    <% bucket.cors.cors_rules.each do |rule| -%>
+    <% @bucket.cors.cors_rules.each do |rule| -%>
 cors_rule {
       allowed_methods = <%=rule.allowed_methods%>
       allowed_origins = <%=rule.allowed_origins%>
@@ -36,21 +34,21 @@ cors_rule {
     <%end-%>
 <%- end -%>
 
-<%- unless bucket.versioning.status.nil? -%>
+<%- unless @bucket.versioning.status.nil? -%>
     versioning {
-      enabled = <%=bucket.versioning.status == 'Enabled'%>
+      enabled = <%=@bucket.versioning.status == 'Enabled'%>
     }
 <%- end -%>
 
-<%- unless bucket.logging.logging_enabled.nil? -%>
+<%- unless @bucket.logging.logging_enabled.nil? -%>
     logging {
-      target_bucket = "<%=bucket.logging.logging_enabled.target_bucket%>"
-      target_prefix = "<%=bucket.logging.logging_enabled.target_prefix%>"
+      target_bucket = "<%=@bucket.logging.logging_enabled.target_bucket%>"
+      target_prefix = "<%=@bucket.logging.logging_enabled.target_prefix%>"
     }
 <%- end -%>
 
-<%- if lifecycle?(bucket) -%>
-    <% bucket.lifecycle_configuration.rules.each do |rule| -%>
+<%- if lifecycle?(@bucket) -%>
+    <% @bucket.lifecycle_configuration.rules.each do |rule| -%>
 lifecycle_rule {
       id      = "<%=rule.id%>"
       enabled =  <%=rule.status == 'Enabled'%>
@@ -94,15 +92,15 @@ lifecycle_rule {
       abort_incomplete_multipart_upload_days = <%=rule.abort_incomplete_multipart_upload.days_after_initiation%>
       <%end%>
   }
-  <%if website_configuation?(bucket) %>
+  <%if website_configuation?(@bucket) %>
   website {
-    index_document = "<%=bucket.website.index_document.suffix%>"
-    <%unless bucket.website.error_document.nil? %>
-    error_document = "<%=bucket.website.error_document.key%>"
+    index_document = "<%=@bucket.website.index_document.suffix%>"
+    <%unless @bucket.website.error_document.nil? %>
+    error_document = "<%=@bucket.website.error_document.key%>"
     <%end%>
-    <%unless bucket.website.routing_rules.nil? %>
+    <%unless @bucket.website.routing_rules.nil? %>
     routing_rules = <<EOF
-        <%=prettify_website_routing_rules(bucket)%>
+        <%=prettify_website_routing_rules(@bucket)%>
     EOF
     <%end%>
   }
@@ -111,4 +109,3 @@ lifecycle_rule {
 <%- end -%>
 }
 
-<% end -%>
