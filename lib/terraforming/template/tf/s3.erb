@@ -9,7 +9,7 @@ resource "aws_s3_bucket" "<%= module_name_of(bucket) %>" {
 POLICY
 <%- end -%>
 
-<%- if has_tagging?(bucket)-%>
+<%- if tagging?(bucket)-%>
     tags {
     <% bucket.tagging.tag_set.each do |t| -%>
       "<%=t[:key]%>" = "<%=t[:value]%>"
@@ -17,7 +17,7 @@ POLICY
 }
 <%- end -%>
 
-<%- if has_cors?(bucket) -%>
+<%- if cors?(bucket) -%>
 
     <% bucket.cors.cors_rules.each do |rule| -%>
 cors_rule {
@@ -49,7 +49,7 @@ cors_rule {
     }
 <%- end -%>
 
-<%- if has_lifecycle?(bucket) -%>
+<%- if lifecycle?(bucket) -%>
     <% bucket.lifecycle_configuration.rules.each do |rule| -%>
 lifecycle_rule {
       id      = "<%=rule.id%>"
@@ -94,7 +94,7 @@ lifecycle_rule {
       abort_incomplete_multipart_upload_days = <%=rule.abort_incomplete_multipart_upload.days_after_initiation%>
       <%end%>
   }
-  <%if has_website_configuation?(bucket) %>
+  <%if website_configuation?(bucket) %>
   website {
     index_document = "<%=bucket.website.index_document.suffix%>"
     <%unless bucket.website.error_document.nil? %>

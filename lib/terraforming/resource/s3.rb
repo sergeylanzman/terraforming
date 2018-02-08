@@ -16,22 +16,22 @@ module Terraforming
       end
 
       def tf
-        apply_template(@client, "tf/s3")
+        apply_template(@client, 'tf/s3')
       end
 
       def tfstate
         buckets.inject({}) do |resources, bucket|
           bucket_policy = bucket_policy_of(bucket)
           resources["aws_s3_bucket.#{module_name_of(bucket)}"] = {
-              "type" => "aws_s3_bucket",
+              "type" => 'aws_s3_bucket',
               "primary" => {
                   "id" => bucket.name,
                   "attributes" => {
-                      "acl" => "private",
+                      "acl" => 'private',
                       "bucket" => bucket.name,
-                      "force_destroy" => "false",
+                      "force_destroy" => 'false',
                       "id" => bucket.name,
-                      "policy" => bucket_policy ? bucket_policy : "",
+                      "policy" => bucket_policy ? bucket_policy : '',
                   }
               }
           }
@@ -56,9 +56,7 @@ module Terraforming
         return @buckets unless @buckets.nil?
         @buckets = []
         @client.list_buckets.map(&:buckets).flatten.each do |bucket|
-          if same_region?(bucket)
-            @buckets << Aws::S3::Bucket.new(bucket.name, client: @client)
-          end
+          @buckets << Aws::S3::Bucket.new(bucket.name, client: @client) if same_region?(bucket)
         end
         @buckets
       end
@@ -67,44 +65,36 @@ module Terraforming
         normalize_module_name(bucket.name)
       end
 
-      def has_tagging?(bucket)
-        if bucket.tagging.tag_set.nil?
-          return false
-        end
+      def tagging?(bucket)
+        return false if bucket.tagging.tag_set.nil?
         true
       rescue Aws::S3::Errors::NoSuchTagSet
         false
       end
 
-      def has_cors?(bucket)
-        if bucket.cors.cors_rules.nil?
-          return false
-        end
+      def cors?(bucket)
+        return false if bucket.cors.cors_rules.nil?
         true
       rescue Aws::S3::Errors::NoSuchCORSConfiguration
         false
       end
 
-      def has_lifecycle?(bucket)
-        if bucket.lifecycle_configuration.rules.nil?
-          return false
-        end
+      def lifecycle?(bucket)
+        return false if bucket.lifecycle_configuration.rules.nil?
         true
       rescue Aws::S3::Errors::NoSuchLifecycleConfiguration
         false
       end
 
-      def has_website_configuation?(bucket)
-        if bucket.website.index_document.nil?
-          return false
-        end
+      def website_configuation?(bucket)
+        return false if bucket.website.index_document.nil?
         true
       rescue Aws::S3::Errors::NoSuchWebsiteConfiguration
         false
       end
 
       def prettify_website_routing_rules(bucket)
-        prettify_policy(bucket.website.routing_rules.map{|t| (t.to_h).to_json}.to_json.gsub('"{','{').gsub('\"','"').gsub('}"','}'))
+        prettify_policy(bucket.website.routing_rules.map { |t| t.to_h.to_json }.to_json.gsub('"{', '{').gsub('\"', '"').gsub('}"', '}'))
       end
 
       def same_region?(bucket)
